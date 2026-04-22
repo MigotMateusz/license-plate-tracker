@@ -1,36 +1,70 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PlateHunt
 
-## Getting Started
+License plate availability tracker. Monitors US DMV systems and notifies subscribers when rare or custom plates become available.
 
-First, run the development server:
+## Stack
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- **Next.js 15** (App Router, TypeScript)
+- **Prisma** + **Neon** (PostgreSQL)
+- **NextAuth v5** (credentials + Google OAuth)
+- **Stripe** (subscriptions, billing portal)
+- **BullMQ** + **Upstash Redis** (scrape/notify job queues)
+- **Resend** (transactional email)
+- **Playwright** (DMV scraping)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Local Setup
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Copy `.env.example` to `.env.local` and fill in values:
+   ```bash
+   cp .env.example .env.local
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+2. Push the database schema:
+   ```bash
+   npm run db:push
+   ```
 
-## Learn More
+3. Seed sample plate data:
+   ```bash
+   npm run db:seed
+   ```
 
-To learn more about Next.js, take a look at the following resources:
+4. Run the dev server:
+   ```bash
+   npm run dev
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+5. (Optional) Run the background worker:
+   ```bash
+   npm run worker
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Deployment
 
-## Deploy on Vercel
+- **Next.js app** → Vercel (connect GitHub repo, add env vars)
+- **Worker** → Railway (`npm run worker` as start command)
+- **Database** → Neon (free tier, paste `DATABASE_URL` from Neon dashboard)
+- **Redis** → Upstash (free tier, paste `REDIS_URL` from Upstash dashboard)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Stripe Setup
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Create a product in Stripe dashboard: $9/month subscription
+2. Copy the Price ID to `STRIPE_PRICE_ID`
+3. Set up webhook endpoint pointing to `/api/webhooks/stripe`
+4. Copy webhook secret to `STRIPE_WEBHOOK_SECRET`
+5. Enable events: `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`
+
+## Environment Variables
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | Neon PostgreSQL connection string |
+| `NEXTAUTH_SECRET` | Random secret (`openssl rand -base64 32`) |
+| `NEXTAUTH_URL` | App URL (`http://localhost:3000` locally) |
+| `STRIPE_SECRET_KEY` | Stripe secret key |
+| `STRIPE_PRICE_ID` | Monthly subscription price ID |
+| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret |
+| `RESEND_API_KEY` | Resend API key for email |
+| `RESEND_FROM_EMAIL` | From address for notifications |
+| `REDIS_URL` | Upstash Redis URL |
+| `NEXT_PUBLIC_APP_URL` | Public app URL |

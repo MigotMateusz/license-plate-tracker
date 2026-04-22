@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String         @id @default(cuid())
+  email            String         @unique
+  hashedPassword   String?
+  name             String?
+  image            String?
+  emailVerified    DateTime?
+  stripeCustomerId String?        @unique
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  accounts         Account[]
+  sessions         Session[]
+  subscription     Subscription?
+  watchedPlates    WatchedPlate[]
+  notifications    Notification[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String             @unique
+  stripeSubscriptionId String             @unique
+  stripePriceId        String
+  status               SubscriptionStatus
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean            @default(false)
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum SubscriptionStatus {
+  active
+  canceled
+  incomplete
+  incomplete_expired
+  past_due
+  trialing
+  unpaid
+}
+
+model Country {
+  id             String           @id @default(cuid())
+  code           String           @unique
+  name           String
+  lastScrapedAt  DateTime?
+  isActive       Boolean          @default(true)
+  plates         AvailablePlate[]
+  watchedPlates  WatchedPlate[]
+}
+
+model AvailablePlate {
+  id            String         @id @default(cuid())
+  countryId     String
+  stateCode     String?
+  plateString   String
+  rarityScore   Int
+  rarityTier    RarityTier
+  category      String?
+  firstSeenAt   DateTime       @default(now())
+  lastSeenAt    DateTime       @default(now())
+  isAvailable   Boolean        @default(true)
+  country       Country        @relation(fields: [countryId], references: [id])
+  notifications Notification[]
+
+  @@unique([countryId, stateCode, plateString])
+  @@index([rarityScore])
+  @@index([countryId, isAvailable])
+}
+
+enum RarityTier {
+  common
+  uncommon
+  rare
+  epic
+  legendary
+}
+
+model WatchedPlate {
+  id            String         @id @default(cuid())
+  userId        String
+  countryId     String
+  stateCode     String?
+  plateString   String
+  notifyEmail   Boolean        @default(true)
+  notifyPush    Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  country       Country        @relation(fields: [countryId], references: [id])
+  notifications Notification[]
+
+  @@unique([userId, countryId, stateCode, plateString])
+}
+
+model Notification {
+  id               String         @id @default(cuid())
+  userId           String
+  watchedPlateId   String
+  availablePlateId String
+  channel          String
+  sentAt           DateTime       @default(now())
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  watchedPlate     WatchedPlate   @relation(fields: [watchedPlateId], references: [id], onDelete: Cascade)
+  availablePlate   AvailablePlate @relation(fields: [availablePlateId], references: [id], onDelete: Cascade)
+}
